@@ -1,0 +1,10 @@
+.\lab3.o: Lab3.c
+.\lab3.o: C:\Keil\ARM\ARMCC\bin\..\include\stdio.h
+.\lab3.o: C:\Keil\ARM\ARMCC\bin\..\include\stdint.h
+.\lab3.o: C:\Keil\ARM\ARMCC\bin\..\include\stdbool.h
+.\lab3.o: PLL.h
+.\lab3.o: Timer1.h
+.\lab3.o: tm4c123gh6pm.h
+.\lab3.o: clockface.h
+.\lab3.o: SoundDriver.h
+.\lab3.o: lab3.h
