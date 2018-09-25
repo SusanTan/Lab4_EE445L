@@ -1,0 +1,14 @@
+*.o
+*.crf
+*.map
+*.htm
+*.d
+*.lst
+*.axf
+*.lnp
+*.dep
+*.bak
+*.uvgui.*
+/Debug
+/Release
+.launches
