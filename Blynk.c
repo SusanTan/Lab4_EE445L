@@ -50,6 +50,7 @@
 #include "Timer1.h"
 #include "clockface.h"
 #include "SoundDriver.h"
+#include "VL53L0X.h"
 
 void EnableInterrupts(void);    // Defined in startup.s
 void DisableInterrupts(void);   // Defined in startup.s
@@ -336,6 +337,17 @@ int main(void){
   UART_Init(5);         // Enable Debug Serial Port
   UART_OutString("\n\rEE445L Lab 4D\n\rBlynk example");
 #endif
+
+  /*-- VL53L0X Init --*/
+  if(!VL53L0X_Init(VL53L0X_I2C_ADDR)) {
+      ST7735_OutString("Fail to initialize VL53L0X :(");
+      delay(1);
+      return 0;
+  } else {
+      ST7735_OutString("VL53L0X Ready~ ");
+      ST7735_OutChar('\n');
+  }
+
   ESP8266_Init();       // Enable ESP8266 Serial Port
   ESP8266_Reset();      // Reset the WiFi module
   ESP8266_SetupWiFi();  // Setup communications to Blynk Server  
@@ -346,7 +358,7 @@ int main(void){
   // Send data back to Blynk App every 1/2 second
  // EnableInterrupts();
  
-  Clockface_Init();
+    Clockface_Init();
 	Sound_Init();
 
 	//SwitchPE_Init(&onAlarmSilence, &onCycleHourSetTime, &onCycleMinuteSetTime);
@@ -354,7 +366,8 @@ int main(void){
 
 	Timer1_Init(80000000, &UpdateSeconds);
 	Clockface_Draw();
-  Clockface_setAlarmOn(false);
+	Clockface_setAlarmOn(false);
+
 	EnableInterrupts();
     while (1) {
 			static uint32_t heartbeat = 0;
@@ -365,11 +378,22 @@ int main(void){
 			  uint16_t hour = recordedSeconds / 3600;
         uint16_t minute = (recordedSeconds - hour*3600) / 60;
         //uint16_t second = recordedSeconds - hour*3600 - minute*60;
+
+        static VL53L0X_RangingMeasurementData_t measurement;
+         VL53L0X_getSingleRangingMeasurement(&measurement);
+         static uint32_t distanceMM;
+         if (measurement.RangeStatus != 4) {
+           distanceMM = measurement.RangeMilliMeter;
+         }
+
 			  if(sendblynk == 0){
 					TM4C_to_Blynk(74, hour);
 				}
 				else if(sendblynk == 1){
 					TM4C_to_Blynk(75, minute);
+				}
+				else if (sendblynk == 2) {
+				    TM4C_to_Blynk(76, distanceMM);
 				}
 
         if (!(++heartbeat % 20)) PF2 ^= 0x04;
