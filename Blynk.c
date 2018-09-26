@@ -85,36 +85,35 @@ enum DisplayState {
     ClockSet,
     AlarmSet,
 };
-
 enum DisplayState displayState;
-enum DisplayState prevDisplayState;
 
 //true if sound is playing
 bool alarmShouldPlay = false;
 //true if sound is triggered when reach alarm time
 bool isAlarmOn = false;
-bool prevAlarmOn = false;
 //holds hours during clock/alarm set
 uint32_t setTimeHour = 12;
-uint32_t prevSetTimeHour = 0;
 //holds minutes during clock/alarm set
 uint32_t setTimeMinute = 0;
-uint32_t prevSetTimeMinute = 0;
+//seconds until return to main screen
+int32_t returnAfter = -1;
 
-//which state to send to blynk
-uint16_t sendblynk; //0:hour 1:minute 2:second
-//which state to receive from blynk
-uint16_t receiveblynk; 
-
-//timer callback
+void onReturnToClockView(void);
 void UpdateSeconds(void) {
+    //read only access outside this function
     recordedSeconds++;
     recordedSeconds %= 43200;
     if (alarmSeconds == recordedSeconds) {
         alarmShouldPlay = true;
     }
+    //this will not produce a critical section this,
+    //isr is higher priority than the isr that changes it
+    if (returnAfter == 0) {
+        onReturnToClockView();
+    } else {
+        returnAfter--;
+    }
 }
-
 //4 buttons:
 //displaymode: cycles through display states when pressed, if not pressed for 3 seconds of no buttons pressed displayState returns to ClockView
 //alarm silence/on/off: if alarm sounding turns off otherwise enables/disables alarm
@@ -125,6 +124,9 @@ void UpdateSeconds(void) {
 void onCycleDisplayState(void) {
     if (displayState == AlarmSet) displayState = ClockView;
     else displayState += 1;
+
+    returnAfter = 5;
+//Timer2_Arm();
 }
 
 //callback for alarm silence/on/off button
@@ -133,7 +135,7 @@ void onAlarmSilence(void) {
         alarmShouldPlay = false;
     } else if (displayState == ClockView) {
         isAlarmOn = !isAlarmOn;
-    }
+		}
 }
 
 //callback for hour set button
@@ -145,6 +147,8 @@ void onCycleHourSetTime(void) {
             setTimeHour++;
         }
     }
+    returnAfter = 3;
+//Timer2_Arm();
 }
 
 //callback for minute set button
@@ -156,15 +160,21 @@ void onCycleMinuteSetTime(void) {
             setTimeMinute++;
         }
     }
+    returnAfter = 3;
+//Timer2_Arm();
 }
 
 //callback for timer to return to clockview after being in timeset or alarmset
 void onReturnToClockView() {
+    if (setTimeHour == 12) {
+        setTimeHour = 0;
+    }
     if (displayState == ClockSet) {
         recordedSeconds = setTimeHour * 3600 + setTimeMinute * 60;
     } else if (displayState == AlarmSet) {
         alarmSeconds = setTimeHour * 3600 + setTimeMinute * 60;
     }
+displayState = ClockView;
 }
 
 
@@ -213,15 +223,7 @@ void Blynk_to_TM4C(void){int j; char data;
   // ---------------------------- VP #1 ----------------------------------------
   // This VP is the LED select button
     if(pin_num == 0x01)  {  
-      LED = pin_int;
-      PortF_Output(LED<<2); // Blue LED
-			onCycleDisplayState();
-#ifdef DEBUG3
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP1 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
+			if(pin_int)onCycleDisplayState();
     }  
     else if(pin_num == 0x02)  {  
        // UP
@@ -260,16 +262,10 @@ void Blynk_to_TM4C(void){int j; char data;
 #endif
     } 
     else if(pin_num == 0x07)  {  
-      void onAlarmSilence(void); // Virtual Button2
-#ifdef DEBUG8
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP7 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
+      if(pin_int)onAlarmSilence(); // Virtual Button2
     } 
     else if(pin_num == 0x08)  {  
-       void onCycleHourSetTime(void);// Virtual Button3
+      if(pin_int)onCycleHourSetTime();// Virtual Button3
 #ifdef DEBUG9
       Output_Color(ST7735_CYAN);
       ST7735_OutString("Rcv VP8 data=");
@@ -278,7 +274,7 @@ void Blynk_to_TM4C(void){int j; char data;
 #endif
     } 		
 		else if(pin_num == 0x09)  {  
-       void onCycleMinuteSetTime(void);// Virtual Button4
+      if(pin_int)onCycleMinuteSetTime();// Virtual Button4
 #ifdef DEBUG10
       Output_Color(ST7735_CYAN);
       ST7735_OutString("Rcv VP9 data=");
@@ -297,7 +293,7 @@ void Blynk_to_TM4C(void){int j; char data;
 #endif
   }  
 }
-
+uint16_t sendblynk; //0:hour 1:minute 2:seconds
 void SendInformation(void){
 	static uint16_t minuteOrhour = 0;
 /*  uint32_t thisF;
@@ -317,12 +313,12 @@ void SendInformation(void){
 		minuteOrhour = 0;
 		sendblynk = 2;
 	}
-#ifdef DEBUG3
+/*#ifdef DEBUG3
     Output_Color(ST7735_WHITE);
     ST7735_OutString("Send 74 data=");
     //ST7735_OutUDec(thisF);
     ST7735_OutChar('\n');
-#endif
+#endif*/
 	  //LastF = thisF;
 }
 
@@ -332,7 +328,7 @@ int main(void){
   DisableInterrupts();  // Disable interrupts until finished with inits
   PortF_Init();
   LastF = PortF_Input();
-/*#ifdef DEBUG3
+#ifdef DEBUG3
   Output_Init();        // initialize ST7735
   ST7735_OutString("EE445L Lab 4D\nBlynk example\n");
 #endif
@@ -343,7 +339,7 @@ int main(void){
   ESP8266_Init();       // Enable ESP8266 Serial Port
   ESP8266_Reset();      // Reset the WiFi module
   ESP8266_SetupWiFi();  // Setup communications to Blynk Server  
-  Timer2_Init(&Blynk_to_TM4C,800000); */
+  Timer2_Init(&Blynk_to_TM4C,800000); 
   // check for receive data from Blynk App every 10ms
 
   Timer3_Init(&SendInformation,40000000); 
@@ -361,7 +357,12 @@ int main(void){
   Clockface_setAlarmOn(false);
 	EnableInterrupts();
     while (1) {
-				uint16_t hour = recordedSeconds / 3600;
+			static uint32_t heartbeat = 0;
+        static uint32_t prevSetTimeHour = 12;
+        static uint32_t prevSetTimeMinute = 0;
+        static enum DisplayState prevDisplayState;
+        static bool prevAlarmOn = false;
+			  uint16_t hour = recordedSeconds / 3600;
         uint16_t minute = (recordedSeconds - hour*3600) / 60;
         //uint16_t second = recordedSeconds - hour*3600 - minute*60;
 			  if(sendblynk == 0){
@@ -370,6 +371,9 @@ int main(void){
 				else if(sendblynk == 1){
 					TM4C_to_Blynk(75, minute);
 				}
+
+        if (!(++heartbeat % 20)) PF2 ^= 0x04;
+
         //cache things that may change
         const uint32_t seconds = recordedSeconds;
         const enum DisplayState currentState = displayState;
@@ -379,6 +383,7 @@ int main(void){
             const bool alarmOn = isAlarmOn;
             const bool playAlarm = alarmShouldPlay;
             EndCritical(it);
+
             if (prevDisplayState != ClockView) {
                 Clockface_Draw();
                 Clockface_setAlarmOn(alarmOn);
@@ -402,35 +407,42 @@ int main(void){
             uint32_t setHour = setTimeHour;
             uint32_t setMin = setTimeMinute;
             EndCritical(it);
+
             if (prevDisplayState != ClockSet) {
                 Clockface_DrawClockSet();
                 setHour = 12;
                 setMin = 0;
                 Clockface_setClockSetTime(setHour,setMin);
             }
+
             if (setHour != prevSetTimeHour || setMin != prevSetTimeMinute) {
                 prevSetTimeHour = setHour;
                 prevSetTimeMinute = setMin;
                 Clockface_setClockSetTime(setHour, setMin);
             }
+
         } else if (currentState == AlarmSet) {
             long it = StartCritical();
             uint32_t setHour = setTimeHour;
             uint32_t setMin = setTimeMinute;
             EndCritical(it);
+
             if (prevDisplayState != AlarmSet) {
                 Clockface_DrawAlarmSet();
                 setHour = 12;
                 setMin = 0;
                 Clockface_setClockSetTime(setHour,setMin);
             }
+
             if (setHour != prevSetTimeHour || setMin != prevSetTimeMinute) {
                 prevSetTimeHour = setHour;
                 prevSetTimeMinute = setMin;
                 Clockface_setClockSetTime(setHour, setMin);
             }
+
         }
-        prevDisplayState = currentState;
+
+prevDisplayState = currentState;
 
 	}
 	
