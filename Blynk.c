@@ -227,70 +227,25 @@ void Blynk_to_TM4C(void){int j; char data;
     }  
     else if(pin_num == 0x02)  {  
        // UP
-#ifdef DEBUG4
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP2 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } 
 		else if(pin_num == 0x03)  {  
        // DOWN
-#ifdef DEBUG5
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP3 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } 
 		else if(pin_num == 0x04)  {  
        // LEFT
-#ifdef DEBUG6
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP4 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } 
 		else if(pin_num == 0x05)  {  
        // RIGHT
-#ifdef DEBUG7
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP5 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } 
     else if(pin_num == 0x07)  {  
       if(pin_int)onAlarmSilence(); // Virtual Button2
     } 
     else if(pin_num == 0x08)  {  
       if(pin_int)onCycleHourSetTime();// Virtual Button3
-#ifdef DEBUG9
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP8 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } 		
 		else if(pin_num == 0x09)  {  
       if(pin_int)onCycleMinuteSetTime();// Virtual Button4
-#ifdef DEBUG10
-      Output_Color(ST7735_CYAN);
-      ST7735_OutString("Rcv VP9 data=");
-      ST7735_OutUDec(LED);
-      ST7735_OutChar('\n');
-#endif
     } // Parse incoming data        
-#ifdef DEBUG1
-    UART_OutString(" Pin_Number = ");
-    UART_OutString(Pin_Number);
-    UART_OutString("   Pin_Integer = ");
-    UART_OutString(Pin_Integer);
-    UART_OutString("   Pin_Float = ");
-    UART_OutString(Pin_Float);
-    UART_OutString("\n\r");
-#endif
   }  
 }
 uint16_t sendblynk; //0:hour 1:minute 2:seconds
